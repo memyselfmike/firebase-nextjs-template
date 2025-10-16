@@ -1,0 +1,147 @@
+name: Deploy to Firebase
+
+on:
+  push:
+    branches: [ main, 'epic-*' ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deployment'
+        required: false
+        default: 'Manual deployment'
+
+env:
+  NODE_VERSION: '18'
+  FIREBASE_PROJECT: savvy-proxy
+  NEXT_PUBLIC_APP_ENV: production
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: savvy-proxy
+
+jobs:
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # Step 3: Cache node_modules
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+
+      # Step 4: Install dependencies
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # Step 5: Build shared-types workspace package
+      - name: Build shared-types package
+        run: |
+          cd packages/shared-types
+          npm run build
+
+      # Step 6: Build web app
+      - name: Build Next.js web app
+        run: |
+          cd apps/web
+          npm run build
+        env:
+          NEXT_PUBLIC_APP_ENV: production
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: savvy-proxy
+
+      # Step 7: Package shared-types for Cloud Functions
+      - name: Package shared-types for Cloud Functions
+        run: |
+          cd packages/shared-types
+          # Create tarball of the built package
+          npm pack
+          # Move tarball to functions directory
+          mv savvyproxy-shared-types-1.0.0.tgz ../../apps/functions/
+          # Update functions package.json to use local tarball
+          cd ../../apps/functions
+          npm pkg set dependencies.@savvyproxy/shared-types="file:savvyproxy-shared-types-1.0.0.tgz"
+
+      # Step 8: Build functions
+      - name: Build Cloud Functions
+        run: |
+          cd apps/functions
+          # Install functions dependencies if not cached
+          if [ ! -d "node_modules" ]; then
+            npm ci
+          fi
+          # Build using local TypeScript from node_modules
+          npm run build
+          echo "After compilation - checking lib:"
+          ls -laR lib/ | head -30 || echo "ERROR: lib directory not found!"
+
+      # Step 9: Deploy to Firebase
+      - name: Deploy to Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/firebase-service-account.json
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/firebase-service-account.json
+          # Deploy only hosting and functions, explicitly skipping extensions
+          npx firebase deploy --only hosting,functions --non-interactive --project savvy-proxy
+
+      # Step 10: Clean up credentials
+      - name: Clean up service account file
+        if: always()
+        run: rm -f $HOME/firebase-service-account.json
+
+      # Step 11: Create deployment summary
+      - name: Create Deployment Summary
+        if: success()
+        run: |
+          echo "# ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production (savvy-proxy)" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** GitHub Actions" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployed Components" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Hosting (Next.js Web App)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Functions (Cloud Functions)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web App:** https://savvy-proxy.web.app" >> $GITHUB_STEP_SUMMARY
+          echo "- **Functions:** https://us-central1-savvy-proxy.cloudfunctions.net" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Info" >> $GITHUB_STEP_SUMMARY
+          echo "- Node.js: ${{ env.NODE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+      # Step 12: Deployment failure notification
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "# ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check build logs above for errors" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify Firebase service account permissions" >> $GITHUB_STEP_SUMMARY
+          echo "3. Ensure all tests passed before deployment" >> $GITHUB_STEP_SUMMARY
+          echo "4. Review recent code changes for issues" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "If needed, rollback with:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "firebase hosting:clone savvy-proxy:previous savvy-proxy:live" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,173 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+*.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Cursor
+.cursor/
+
+# IDE - Other
+.bmad-core/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Windows reserved filenames
+nul
+NUL
+CON
+PRN
+AUX
+com[1-9]
+lpt[1-9]
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+storage-debug.log
+emulators-debug.log
+functions-debug.log
+*.cache
+
+# Firebase Functions
+apps/functions/lib/
+apps/functions/node_modules/
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# TypeScript
+*.tsbuildinfo
+.tsc-cache/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Output of 'npm pack'
+*.tgz
+savvyproxy-shared-types-*.tgz
+
+# Yarn
+.yarn-integrity
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Misc
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Lock files (keeping package-lock.json)
+yarn.lock
+pnpm-lock.yaml
+
+# Secrets and credentials
+*.key
+*.pem
+*.p12
+*.crt
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+savvy-proxy-*.json
+
+# Build artifacts
+*.zip
+*.tar.gz
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Generated files
+generated/
+
+# Sensitive configuration
+docs/api/bubble-config.md
